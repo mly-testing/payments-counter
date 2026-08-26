@@ -60,6 +60,12 @@ export async function createPayment(amount, method) {
   return data.payment;
 }
 
+export async function updatePayment(id, amount, method) {
+  const data = await call({ action: 'update', id, amount, method });
+  if (!data.payment) throw new ApiError('empty-response');
+  return data.payment;
+}
+
 export async function deletePayment(id) {
   await call({ action: 'delete', id });
 }
@@ -82,6 +88,8 @@ export function describeError(error) {
       return 'Скрипт в таблице устарел, обновите развёртывание';
     case 'bad-amount':
       return 'Скрипт отклонил сумму';
+    case 'not-found':
+      return 'Такой записи в таблице больше нет — обновите список';
     case 'http-401':
     case 'http-403':
       return 'Скрипт закрыт. При публикации выберите «Доступ: все»';

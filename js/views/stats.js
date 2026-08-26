@@ -42,14 +42,14 @@ export function mount(container) {
       ).join('')}
     </div>
 
-    <div class="section" id="period-totals"></div>
+    <div class="section" id="day-detail"></div>
 
     <div class="section">
       <div class="section__title">Суммы по дням</div>
       <div class="card chart-card" id="chart-card"></div>
     </div>
 
-    <div class="section" id="day-detail"></div>`;
+    <div class="section" id="period-totals"></div>`;
 
   const periodEl = container.querySelector('#period');
   const totalsEl = container.querySelector('#period-totals');
@@ -76,7 +76,7 @@ export function mount(container) {
     chartEl.innerHTML = `
       ${renderChart(dailySeries(periodPayments, dayKeys), { activeKey })}
       ${renderLegend()}
-      <p class="hint-inline">Нажмите на столбец, чтобы посмотреть детали дня</p>`;
+      <p class="hint-inline">Нажмите на столбец — детали этого дня появятся выше</p>`;
 
     detailEl.innerHTML = dayDetailMarkup(payments, activeKey);
   }

@@ -63,9 +63,20 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+
+  /* Safari принимает два быстрых касания за жест «приблизить», из-за чего
+     набор цифр подряд менял масштаб страницы. Прокрутка и щипок остаются. */
+  touch-action: manipulation;
 }
 
-button { font: inherit; color: inherit; cursor: pointer; }
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 /* Классы ниже задают display, а он по специфичности сильнее правила браузера
    для [hidden] — без этого скрытые элементы продолжали бы отображаться. */
@@ -596,6 +607,9 @@ h1, h2, h3, p { margin: 0; }
   margin: 18px 2px 8px;
 }
 
+/* Заголовок дня открывает свой блок — второй отступ сверху здесь лишний. */
+.section > .list__group-title:first-child { margin-top: 0; }
+
 .list__group-day { font-size: 15px; font-weight: 650; }
 
 .list__group-total {
@@ -614,6 +628,22 @@ h1, h2, h3, p { margin: 0; }
 }
 
 .row:last-child { border-bottom: 0; }
+
+/* Вся строка, кроме крестика, — кнопка перехода к правке записи. */
+.row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  transition: opacity .12s;
+}
+
+.row__main:active { opacity: .55; }
 
 .row__marker {
   flex: 0 0 auto;
@@ -666,6 +696,84 @@ h1, h2, h3, p { margin: 0; }
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
+}
+
+/* ==========================================================================
+   Правка записи прямо в списке
+   ========================================================================== */
+.row--editing {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface-2);
+}
+
+.edit__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+/* Шрифт не мельче 16px: иначе Safari приближает страницу при фокусе в поле. */
+.edit__input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.edit__input:focus { outline: none; }
+
+.edit__currency { color: var(--text-muted); font-weight: 600; }
+
+.edit__methods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .15s, border-color .15s, color .15s;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--dot) 60%, var(--border));
+  background: color-mix(in srgb, var(--dot) 14%, var(--surface));
+  color: var(--text);
+}
+
+.chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--dot);
+}
+
+.edit__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 /* Строка «способ оплаты» в разбивке по дню */
@@ -757,6 +865,12 @@ h1, h2, h3, p { margin: 0; }
 .btn:disabled { opacity: .5; cursor: default; }
 
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); }
+
+.btn--accent {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--accent);
+}
 
 /* ==========================================================================
    Экран первичной настройки

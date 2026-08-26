@@ -68,6 +68,8 @@ function handle(request) {
         return { ok: true, payments: readPayments() };
       case 'add':
         return { ok: true, payment: appendPayment(request) };
+      case 'update':
+        return { ok: true, payment: updatePayment(request) };
       case 'delete':
         return { ok: true, deleted: deletePayment(String(request.id || '')) };
       default:
@@ -253,6 +255,41 @@ function appendPayment(request) {
   }
 }
 
+/**
+ * Меняет сумму и способ оплаты у существующей строки. Время создания остаётся
+ * прежним: правка задним числом не должна переносить оплату в другой день.
+ */
+function updatePayment(request) {
+  const id = String(request.id || '').trim();
+  if (!id) throw new Error('not-found');
+
+  const method = String(request.method || '').trim().toLowerCase();
+  if (!METHODS[method]) throw new Error('unknown-method');
+
+  const amount = Math.round(Number(request.amount));
+  if (!isFinite(amount) || amount <= 0) throw new Error('bad-amount');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(LOCK_TIMEOUT_MS);
+  try {
+    const sheet = getSheet();
+    const rowIndex = findRow(sheet, id);
+    if (rowIndex === 0) throw new Error('not-found');
+
+    const timezone = getTimezone();
+    const range = sheet.getRange(rowIndex, 1, 1, HEADERS.length);
+    const row = range.getValues()[0];
+    const stamp = resolveStamp(row, timezone) || new Date();
+
+    fillDerived(row, method, amount, stamp, timezone);
+    range.setValues([row]);
+
+    return { id: id, method: method, amount: amount, createdAt: stamp.toISOString() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /** @returns true, если строка нашлась и была удалена. */
 function deletePayment(id) {
   if (!id) return false;
@@ -261,20 +298,26 @@ function deletePayment(id) {
   lock.waitLock(LOCK_TIMEOUT_MS);
   try {
     const sheet = getSheet();
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return false;
+    const rowIndex = findRow(sheet, id);
+    if (rowIndex === 0) return false;
 
-    const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    for (var i = 0; i < ids.length; i += 1) {
-      if (String(ids[i][0]).trim() === id) {
-        sheet.deleteRow(i + 2);
-        return true;
-      }
-    }
-    return false;
+    sheet.deleteRow(rowIndex);
+    return true;
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Номер строки листа с этим идентификатором. 0, если такой строки нет. */
+function findRow(sheet, id) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i += 1) {
+    if (String(ids[i][0]).trim() === id) return i + 2;
+  }
+  return 0;
 }
 
 /* ==========================================================================

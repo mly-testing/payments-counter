@@ -75,6 +75,29 @@ export function draftToKopecks(draft) {
   return rubles * 100 + cents;
 }
 
+/* ==========================================================================
+   Ввод в обычное поле — правка суммы у сохранённой записи
+   ========================================================================== */
+
+/** 150050 → «1500,50». Без разделителей разрядов: строку предстоит править руками. */
+export function kopecksToInput(kopecks) {
+  const whole = Math.floor(kopecks / 100);
+  const cents = kopecks % 100;
+  return cents === 0 ? String(whole) : `${whole},${String(cents).padStart(2, '0')}`;
+}
+
+/** «1 500.5» → 150050. null, если это не сумма больше нуля. */
+export function parseAmountInput(text) {
+  const cleaned = String(text)
+    .replace(/[\s\u00A0]/g, '')
+    .replace(',', '.');
+
+  if (!/^\d{1,9}(\.\d{1,2})?$/.test(cleaned)) return null;
+
+  const kopecks = Math.round(Number(cleaned) * 100);
+  return kopecks > 0 ? kopecks : null;
+}
+
 /** «1500,5» → «1 500,5»: группируем разряды, не трогая незакрытую дробную часть. */
 export function formatDraft(draft) {
   if (draft === '') return '0';

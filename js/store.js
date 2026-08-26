@@ -116,6 +116,24 @@ export async function addPayment(amount, method) {
   return payment;
 }
 
+/** Меняет сумму и способ оплаты. Время создания остаётся прежним. */
+export async function updatePayment(id, amount, method) {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error('Сумма должна быть целым числом копеек больше нуля');
+  }
+  if (!isKnownMethod(method)) {
+    throw new Error(`Неизвестный способ оплаты: ${method}`);
+  }
+
+  const updated = await api.updatePayment(id, amount, method);
+  const [payment] = sanitize([updated]);
+  if (!payment) throw new api.ApiError('bad-response');
+
+  payments = sanitize(payments.map((item) => (item.id === payment.id ? payment : item)));
+  notify();
+  return payment;
+}
+
 export async function removePayment(id) {
   await api.deletePayment(id);
   payments = payments.filter((item) => item.id !== id);

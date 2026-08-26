@@ -67,6 +67,22 @@ def handle(request):
         save_payments(payments)
         return {'ok': True, 'payment': payment}
 
+    if action == 'update':
+        method = request.get('method')
+        amount = request.get('amount')
+        if method not in METHODS:
+            return {'ok': False, 'error': 'unknown-method'}
+        if not isinstance(amount, int) or amount <= 0:
+            return {'ok': False, 'error': 'bad-amount'}
+
+        for payment in payments:
+            if payment['id'] == request.get('id'):
+                payment['method'] = method
+                payment['amount'] = amount
+                save_payments(payments)
+                return {'ok': True, 'payment': payment}
+        return {'ok': False, 'error': 'not-found'}
+
     if action == 'delete':
         target = request.get('id')
         remaining = [item for item in payments if item['id'] != target]
