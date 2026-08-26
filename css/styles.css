@@ -310,35 +310,6 @@ h1, h2, h3, p { margin: 0; }
 
 .empty__emoji { display: block; margin-bottom: 8px; font-size: 30px; }
 
-.num { font-variant-numeric: tabular-nums; }
-
-/* Сегментированный переключатель периода */
-.segmented {
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--surface-2);
-}
-
-.segmented__btn {
-  flex: 1;
-  padding: 8px 4px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 600;
-  transition: background .15s, color .15s;
-}
-
-.segmented__btn[aria-selected="true"] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
-}
-
 /* ==========================================================================
    Экран ввода
    ========================================================================== */
@@ -523,78 +494,6 @@ h1, h2, h3, p { margin: 0; }
 }
 
 /* ==========================================================================
-   График
-   ========================================================================== */
-.chart-card { padding: 16px 12px 10px; }
-
-.chart { display: block; width: 100%; height: auto; overflow: visible; }
-
-.chart__grid-line { stroke: var(--border); stroke-width: 1; }
-
-.chart__grid-label {
-  fill: var(--text-faint);
-  font-size: 9px;
-  font-family: inherit;
-  font-variant-numeric: tabular-nums;
-}
-
-.chart__x-label {
-  fill: var(--text-muted);
-  font-size: 9.5px;
-  font-family: inherit;
-  text-anchor: middle;
-}
-
-.chart__x-label--active { fill: var(--text); font-weight: 700; }
-
-.chart__total {
-  fill: var(--text);
-  font-size: 9px;
-  font-weight: 700;
-  font-family: inherit;
-  text-anchor: middle;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Только прозрачные зоны дней принимают нажатия: сами столбцы и подписи
-   нарисованы поверх них и иначе перехватывали бы клик. */
-.chart__stack,
-.chart__total,
-.chart__x-label,
-.chart__grid-line,
-.chart__grid-label { pointer-events: none; }
-
-.chart__hit { fill: transparent; cursor: pointer; }
-
-.chart__hit:hover + .chart__stack,
-.chart__hit--active + .chart__stack { opacity: .82; }
-
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 16px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.legend__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.legend__marker {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--dot);
-}
-
-/* ==========================================================================
    Списки
    ========================================================================== */
 .list { overflow: hidden; }
@@ -606,9 +505,6 @@ h1, h2, h3, p { margin: 0; }
   gap: 10px;
   margin: 18px 2px 8px;
 }
-
-/* Заголовок дня открывает свой блок — второй отступ сверху здесь лишний. */
-.section > .list__group-title:first-child { margin-top: 0; }
 
 .list__group-day { font-size: 15px; font-weight: 650; }
 
@@ -776,57 +672,7 @@ h1, h2, h3, p { margin: 0; }
   gap: 8px;
 }
 
-/* Строка «способ оплаты» в разбивке по дню */
-.breakdown { display: grid; gap: 8px; padding: 4px 0; }
-
-.breakdown__row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-
-.breakdown__marker {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--dot);
-}
-
-.breakdown__title { flex: 1; color: var(--text-muted); }
-
-.breakdown__value { font-weight: 650; font-variant-numeric: tabular-nums; }
-
-.breakdown__bar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--surface-3);
-  overflow: hidden;
-}
-
-.breakdown__bar-fill { height: 100%; border-radius: 2px; background: var(--dot); }
-
 .card--pad { padding: 14px 16px; }
-
-/* Строка «подпись — значение» в итогах дня */
-.kv {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 14.5px;
-}
-
-.kv__label { color: var(--text-muted); }
-
-.kv__value { font-weight: 700; font-variant-numeric: tabular-nums; }
-
-.kv--strong .kv__label { color: var(--text); font-weight: 650; }
-
-.kv--strong .kv__value { font-size: 18px; }
 
 .hint-inline {
   margin-top: 10px;
@@ -863,8 +709,6 @@ h1, h2, h3, p { margin: 0; }
 .btn:active { transform: scale(.985); }
 
 .btn:disabled { opacity: .5; cursor: default; }
-
-.btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); }
 
 .btn--accent {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));

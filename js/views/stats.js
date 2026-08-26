@@ -1,146 +1,203 @@
-import {
-  dailySeries,
-  formatDayLabel,
-  formatRangeLabel,
-  formatTime,
-  lastDayKeys,
-  paymentsOfDay,
-  toDayKey,
-  todayKey,
-  totalsOf,
-} from '../analytics.js';
-import { renderChart, renderLegend } from '../components/chart.js';
-import { delegate } from '../components/dom.js';
-import { renderBreakdown, renderTotals } from '../components/totals.js';
-import { CASHLESS_LABEL, getMethod } from '../methods.js';
-import { formatMoney } from '../money.js';
+import { describeError } from '../api.js';
+import { formatDayLabel, paymentsOfDay, todayKey, totalsOf } from '../analytics.js';
+import { delegate, haptic } from '../components/dom.js';
+import { editorMarkup, rowMarkup } from '../components/payment-rows.js';
+import { plural, renderTotals } from '../components/totals.js';
+import { showError, showToast } from '../components/toast.js';
+import { getMethod } from '../methods.js';
+import { formatMoney, kopecksToInput, parseAmountInput } from '../money.js';
 import * as store from '../store.js';
-
-const PERIODS = [
-  { days: 7, label: '7 дней' },
-  { days: 14, label: '14 дней' },
-  { days: 30, label: '30 дней' },
-];
-
-/** Выбор периода и выделенный день переживают переключение вкладок. */
-let periodDays = 7;
-let selectedDay = null;
 
 export const title = 'Статистика';
 
 export function subtitle() {
-  return `Период: ${formatRangeLabel(lastDayKeys(periodDays))}`;
+  const count = todayPayments().length;
+  return count === 0 ? 'Сегодня оплат ещё не было' : `Сегодня: ${plural(count)}`;
+}
+
+function todayPayments() {
+  return paymentsOfDay(store.getPayments(), todayKey());
 }
 
 export function mount(container) {
   container.innerHTML = `
-    <div class="segmented" id="period" role="tablist" aria-label="Период">
-      ${PERIODS.map(
-        (period) => `
-        <button class="segmented__btn" type="button" role="tab"
-                data-days="${period.days}">${period.label}</button>`,
-      ).join('')}
-    </div>
-
-    <div class="section" id="day-detail"></div>
-
-    <div class="section">
-      <div class="section__title">Суммы по дням</div>
-      <div class="card chart-card" id="chart-card"></div>
-    </div>
-
-    <div class="section" id="period-totals"></div>`;
-
-  const periodEl = container.querySelector('#period');
-  const totalsEl = container.querySelector('#period-totals');
-  const chartEl = container.querySelector('#chart-card');
-  const detailEl = container.querySelector('#day-detail');
-
-  function render() {
-    const dayKeys = lastDayKeys(periodDays);
-    const inPeriod = new Set(dayKeys);
-    const payments = store.getPayments();
-    const periodPayments = payments.filter((payment) =>
-      inPeriod.has(toDayKey(new Date(payment.createdAt))),
-    );
-
-    for (const button of periodEl.children) {
-      button.setAttribute('aria-selected', String(Number(button.dataset.days) === periodDays));
-    }
-
-    totalsEl.innerHTML = `
-      <div class="section__title">Итого за ${formatRangeLabel(dayKeys)}</div>
-      ${renderTotals(totalsOf(periodPayments))}`;
-
-    const activeKey = inPeriod.has(selectedDay ?? '') ? selectedDay : todayKey();
-    chartEl.innerHTML = `
-      ${renderChart(dailySeries(periodPayments, dayKeys), { activeKey })}
-      ${renderLegend()}
-      <p class="hint-inline">Нажмите на столбец — детали этого дня появятся выше</p>`;
-
-    detailEl.innerHTML = dayDetailMarkup(payments, activeKey);
-  }
-
-  delegate(container, '.segmented__btn', 'click', (_event, button) => {
-    periodDays = Number(button.dataset.days);
-    render();
-    document.dispatchEvent(new CustomEvent('view:header-changed'));
-  });
-
-  delegate(container, '.chart__hit', 'click', (_event, hit) => {
-    selectedDay = hit.dataset.day;
-    render();
-  });
-
-  return { update: render, destroy() {} };
-}
-
-/* ==========================================================================
-   Детали выбранного дня
-   ========================================================================== */
-
-function dayDetailMarkup(payments, dayKey) {
-  const dayPayments = paymentsOfDay(payments, dayKey);
-  const totals = totalsOf(dayPayments);
-
-  const summary = `
-    <div class="card card--pad">
-      ${renderBreakdown(totals)}
-      <div class="kv">
-        <span class="kv__label">Безнал, ${CASHLESS_LABEL}</span>
-        <span class="kv__value">${formatMoney(totals.cashless)}</span>
-      </div>
-      <div class="kv kv--strong">
-        <span class="kv__label">Всего за день</span>
-        <span class="kv__value">${formatMoney(totals.total)}</span>
-      </div>
-    </div>`;
-
-  const operations = dayPayments.length === 0
-    ? `<div class="card empty"><span class="empty__emoji">📭</span>В этот день оплат не было</div>`
-    : `<div class="card list">${dayPayments.map(rowMarkup).join('')}</div>`;
-
-  return `
-    <div class="list__group-title">
-      <span class="list__group-day">${formatDayLabel(dayKey)}</span>
-      <span class="list__group-total">${formatMoney(totals.total)}</span>
-    </div>
-    ${summary}
+    <div class="section" id="day-totals"></div>
     <div class="section">
       <div class="section__title">Операции этого дня</div>
-      ${operations}
+      <div id="day-list"></div>
     </div>`;
-}
 
-function rowMarkup(payment) {
-  const method = getMethod(payment.method);
-  return `
-    <div class="row" style="--dot: ${method.color}">
-      <span class="row__marker" aria-hidden="true"></span>
-      <span class="row__body">
-        <span class="row__title">${method.title}</span>
-        <span class="row__time">🕒 ${formatTime(payment.createdAt)}</span>
-      </span>
-      <span class="row__amount">${formatMoney(payment.amount)}</span>
-    </div>`;
+  const totalsEl = container.querySelector('#day-totals');
+  const listEl = container.querySelector('#day-list');
+
+  /** Запись, открытая на правку, вместе с ещё не сохранёнными значениями. */
+  let editing = null;
+  let saving = false;
+  let focusPending = false;
+
+  function renderSummary() {
+    totalsEl.innerHTML = `
+      <div class="section__title">${formatDayLabel(todayKey())}</div>
+      ${renderTotals(totalsOf(todayPayments()))}`;
+  }
+
+  function render() {
+    renderSummary();
+
+    // Запись могли удалить в таблице, пока она была открыта на правку.
+    if (editing && !store.getPayment(editing.id)) editing = null;
+
+    const payments = todayPayments();
+    if (payments.length === 0) {
+      listEl.innerHTML =
+        store.getStatus() === store.Status.Loading
+          ? '<div class="card empty"><span class="spinner spinner--lg"></span>Читаю таблицу…</div>'
+          : `<div class="card empty">
+               <span class="empty__emoji">📭</span>
+               Сегодня оплат ещё не было
+             </div>`;
+      return;
+    }
+
+    listEl.innerHTML = `<div class="card list">${payments.map(rowOrEditor).join('')}</div>`;
+    if (focusPending) focusAmount();
+  }
+
+  function rowOrEditor(payment) {
+    return editing?.id === payment.id
+      ? editorMarkup(editing, saving)
+      : rowMarkup(payment, { editable: true });
+  }
+
+  function focusAmount() {
+    focusPending = false;
+    const input = listEl.querySelector('.edit__input');
+    if (!input) return;
+
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+
+  function closeEditor() {
+    editing = null;
+    render();
+  }
+
+  async function commit() {
+    if (!editing || saving) return;
+
+    const payment = store.getPayment(editing.id);
+    if (!payment) {
+      closeEditor();
+      return;
+    }
+
+    const amount = parseAmountInput(editing.draft);
+    if (amount === null) {
+      showError('Проверьте сумму', 'Нужно число больше нуля, например 1500 или 1500,50');
+      return;
+    }
+    if (amount === payment.amount && editing.method === payment.method) {
+      closeEditor();
+      return;
+    }
+
+    saving = true;
+    render();
+
+    try {
+      const updated = await store.updatePayment(editing.id, amount, editing.method);
+      const method = getMethod(updated.method);
+      editing = null;
+      haptic(10);
+      showToast({
+        title: 'Запись изменена',
+        subtitle: `${method.title} · ${formatMoney(updated.amount)}`,
+        tone: method.color,
+      });
+    } catch (error) {
+      // Введённые значения остаются на экране, чтобы можно было повторить.
+      showError('Не удалось изменить', describeError(error));
+    } finally {
+      saving = false;
+      render();
+    }
+  }
+
+  delegate(container, '[data-edit]', 'click', (_event, button) => {
+    if (saving) return;
+
+    const payment = store.getPayment(button.dataset.edit);
+    if (!payment) return;
+
+    editing = {
+      id: payment.id,
+      draft: kopecksToInput(payment.amount),
+      method: payment.method,
+    };
+    focusPending = true;
+    render();
+  });
+
+  // Набранное запоминаем сразу: перерисовка не должна терять правку.
+  container.addEventListener('input', (event) => {
+    if (editing && event.target.classList.contains('edit__input')) {
+      editing.draft = event.target.value;
+    }
+  });
+
+  container.addEventListener('keydown', (event) => {
+    if (!editing || !event.target.classList.contains('edit__input')) return;
+
+    if (event.key === 'Enter') commit();
+    else if (event.key === 'Escape') closeEditor();
+    else return;
+
+    event.preventDefault();
+  });
+
+  // Способ переключаем без перерисовки, иначе на телефоне закрылась бы клавиатура.
+  delegate(container, '[data-pick]', 'click', (_event, button) => {
+    if (!editing || saving) return;
+
+    editing.method = button.dataset.pick;
+    for (const chip of button.parentElement.children) {
+      chip.setAttribute('aria-pressed', String(chip.dataset.pick === editing.method));
+    }
+  });
+
+  delegate(container, '[data-action="edit-save"]', 'click', () => commit());
+
+  delegate(container, '[data-action="edit-cancel"]', 'click', () => {
+    if (!saving) closeEditor();
+  });
+
+  delegate(container, '.row__delete', 'click', async (_event, button) => {
+    const { id } = button.dataset;
+    const payment = store.getPayment(id);
+    if (!payment || button.disabled) return;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span>';
+
+    try {
+      await store.removePayment(id);
+      haptic(12);
+      showToast({
+        title: 'Запись удалена',
+        subtitle: `${getMethod(payment.method).title} · ${formatMoney(payment.amount)}`,
+        tone: 'var(--danger)',
+      });
+    } catch (error) {
+      showError('Не удалось удалить', describeError(error));
+    }
+    render();
+  });
+
+  return {
+    // Пока открыт редактор, список не пересобираем: фоновое обновление раз в
+    // минуту иначе сбрасывало бы набранное и закрывало клавиатуру.
+    update: () => (editing ? renderSummary() : render()),
+    destroy() {},
+  };
 }

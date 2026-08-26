@@ -30,20 +30,6 @@ export function todayKey() {
   return toDayKey(new Date());
 }
 
-/** Ключи последних n дней, от самого старого к самому свежему. */
-export function lastDayKeys(count) {
-  const keys = [];
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  cursor.setDate(cursor.getDate() - (count - 1));
-
-  for (let i = 0; i < count; i += 1) {
-    keys.push(toDayKey(cursor));
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return keys;
-}
-
 /** «Сегодня, 26 августа» / «Вчера, 25 августа» / «24 августа, сб». */
 export function formatDayLabel(key) {
   const date = fromDayKey(key);
@@ -55,25 +41,8 @@ export function formatDayLabel(key) {
   return `${base}, ${weekdayFmt.format(date)}`;
 }
 
-/** «26.08» — для оси графика. */
-export function formatDayShort(key) {
-  const [, month, day] = key.split('-');
-  return `${day}.${month}`;
-}
-
-export function formatWeekday(key) {
-  return weekdayFmt.format(fromDayKey(key)).replace('.', '');
-}
-
 export function formatTime(iso) {
   return timeFmt.format(new Date(iso));
-}
-
-export function formatRangeLabel(keys) {
-  if (keys.length === 0) return '';
-  const first = formatDayShort(keys[0]);
-  const last = formatDayShort(keys[keys.length - 1]);
-  return first === last ? first : `${first} — ${last}`;
 }
 
 function daysFromToday(key) {
@@ -121,17 +90,6 @@ export function groupByDay(payments) {
     else groups.set(key, [payment]);
   }
   return groups;
-}
-
-/**
- * Ряд данных для графика: по одной точке на каждый день диапазона,
- * включая дни без оплат — иначе столбцы «слипаются» и картина искажается.
- *
- * @returns {Array<Totals & {key: string}>}
- */
-export function dailySeries(payments, dayKeys) {
-  const groups = groupByDay(payments);
-  return dayKeys.map((key) => ({ key, ...totalsOf(groups.get(key) ?? []) }));
 }
 
 export function paymentsOfDay(payments, key) {

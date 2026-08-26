@@ -36,25 +36,6 @@ export function renderTotals(totals) {
     </div>`;
 }
 
-/** Разбивка с полосками — показывает вклад каждого способа в сумму дня. */
-export function renderBreakdown(totals) {
-  const rows = METHODS.map((method) => {
-    const amount = totals.byMethod[method.id] ?? 0;
-    const share = totals.total > 0 ? (amount / totals.total) * 100 : 0;
-    return `
-      <div style="--dot: ${method.color}">
-        <div class="breakdown__row">
-          <span class="breakdown__marker"></span>
-          <span class="breakdown__title">${method.title}</span>
-          <span class="breakdown__value">${formatMoney(amount)}</span>
-        </div>
-        <div class="breakdown__bar"><div class="breakdown__bar-fill" style="width: ${share.toFixed(1)}%"></div></div>
-      </div>`;
-  }).join('');
-
-  return `<div class="breakdown">${rows}</div>`;
-}
-
 export function plural(count) {
   const mod10 = count % 10;
   const mod100 = count % 100;

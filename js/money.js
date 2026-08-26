@@ -19,19 +19,6 @@ export function formatMoney(kopecks, { withCurrency = true } = {}) {
   return withCurrency ? `${out}${NBSP}${CURRENCY}` : out;
 }
 
-/** Компактная запись для подписей графика: 950, 1,5к, 12к, 1,2М. */
-export function formatCompact(kopecks) {
-  const rub = Math.round(kopecks / 100);
-  if (rub < 1000) return String(rub);
-  if (rub < 1_000_000) return `${trimZero(rub / 1000)}к`;
-  return `${trimZero(rub / 1_000_000)}М`;
-}
-
-function trimZero(value) {
-  const rounded = value < 10 ? value.toFixed(1) : String(Math.round(value));
-  return rounded.replace('.0', '').replace('.', ',');
-}
-
 function groupDigits(digits) {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
 }

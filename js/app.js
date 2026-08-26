@@ -159,8 +159,6 @@ function bootstrap() {
     headerEl.classList.toggle('app-header--scrolled', window.scrollY > 4);
   }, { passive: true });
 
-  document.addEventListener('view:header-changed', renderHeader);
-
   // Приложение живёт в таблице, поэтому при возврате к нему данные могли
   // измениться. Плюс после смены суток «сегодня» должно поехать само.
   const onResume = () => {

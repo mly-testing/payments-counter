@@ -6,7 +6,7 @@
  * При выпуске обновлений поднимайте CACHE_VERSION, иначе на телефоне
  * останется старая версия из кэша.
  */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `payments-counter-${CACHE_VERSION}`;
 
 const SHELL = [
@@ -21,8 +21,8 @@ const SHELL = [
   './js/methods.js',
   './js/money.js',
   './js/store.js',
-  './js/components/chart.js',
   './js/components/dom.js',
+  './js/components/payment-rows.js',
   './js/components/toast.js',
   './js/components/totals.js',
   './js/views/entry.js',
