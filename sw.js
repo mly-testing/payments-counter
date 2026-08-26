@@ -1,11 +1,12 @@
 /**
- * Кэширует оболочку приложения, чтобы оно открывалось без интернета.
- * Данные пользователя здесь не участвуют — они лежат в localStorage.
+ * Кэширует оболочку приложения, чтобы оно быстро открывалось и не зависело
+ * от скорости сети. Сами оплаты через кэш не проходят: они лежат в Google
+ * Таблице, а запросы к ней уходят на другой домен и здесь не перехватываются.
  *
  * При выпуске обновлений поднимайте CACHE_VERSION, иначе на телефоне
  * останется старая версия из кэша.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `payments-counter-${CACHE_VERSION}`;
 
 const SHELL = [
@@ -15,7 +16,8 @@ const SHELL = [
   './css/styles.css',
   './js/app.js',
   './js/analytics.js',
-  './js/export.js',
+  './js/api.js',
+  './js/config.js',
   './js/methods.js',
   './js/money.js',
   './js/store.js',
@@ -25,6 +27,7 @@ const SHELL = [
   './js/components/totals.js',
   './js/views/entry.js',
   './js/views/history.js',
+  './js/views/setup.js',
   './js/views/stats.js',
   './assets/icon.svg',
 ];

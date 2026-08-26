@@ -1,8 +1,9 @@
+import { describeError } from '../api.js';
 import { daysWithPayments, formatDayLabel, formatTime, totalsOf } from '../analytics.js';
 import { delegate, haptic } from '../components/dom.js';
-import { plural, renderTotals } from '../components/totals.js';
+import { renderTotals } from '../components/totals.js';
 import { showError, showToast } from '../components/toast.js';
-import { exportCsv, exportJson, importJson } from '../export.js';
+import { SHEET_API } from '../config.js';
 import { getMethod } from '../methods.js';
 import { formatMoney } from '../money.js';
 import * as store from '../store.js';
@@ -10,8 +11,11 @@ import * as store from '../store.js';
 export const title = 'История';
 
 export function subtitle() {
+  if (store.getStatus() === store.Status.Loading && store.getCount() === 0) {
+    return 'Читаю таблицу…';
+  }
   const count = store.getCount();
-  return count === 0 ? 'Пока ничего не сохранено' : `Всего записей: ${count}`;
+  return count === 0 ? 'В таблице пока пусто' : `Записей в таблице: ${count}`;
 }
 
 export function mount(container) {
@@ -22,112 +26,71 @@ export function mount(container) {
       <div id="history-list"></div>
     </div>
     <div class="actions">
-      <button class="btn" type="button" data-action="csv">📄 Экспорт CSV</button>
-      <button class="btn" type="button" data-action="backup">💾 Резервная копия</button>
-      <button class="btn" type="button" data-action="restore">📥 Восстановить</button>
-      <button class="btn btn--danger" type="button" data-action="clear">🗑 Удалить всё</button>
+      <button class="btn" type="button" data-action="refresh">🔄 Обновить</button>
+      ${
+        SHEET_API.sheetUrl
+          ? `<a class="btn" href="${SHEET_API.sheetUrl}" target="_blank" rel="noopener">📗 Открыть таблицу</a>`
+          : '<button class="btn" type="button" disabled>📗 Ссылка не задана</button>'
+      }
     </div>
     <p class="hint-inline">
-      Данные хранятся только в этом браузере. Резервная копия — единственный способ
-      не потерять их при очистке данных Safari или смене телефона.
-    </p>
-    <input type="file" id="restore-input" accept="application/json" hidden>`;
+      Все записи живут в Google Таблице. Удаление здесь удаляет строку и в ней,
+      а изменения, внесённые в таблице руками, появятся тут после обновления.
+    </p>`;
 
   const totalsEl = container.querySelector('#history-totals');
   const listEl = container.querySelector('#history-list');
-  const fileInput = container.querySelector('#restore-input');
 
   function render() {
     const payments = store.getPayments();
-    const overall = totalsOf(payments);
 
     totalsEl.innerHTML = `
       <div class="section__title">За всё время</div>
-      ${renderTotals(overall)}`;
+      ${renderTotals(totalsOf(payments))}`;
 
-    listEl.innerHTML = payments.length === 0
-      ? `<div class="card empty">
-           <span class="empty__emoji">🧾</span>
-           Здесь появятся все оплаты с точным временем.
-         </div>`
-      : daysWithPayments(payments).map(dayGroupMarkup).join('');
-  }
-
-  delegate(container, '.row__delete', 'click', (_event, button) => {
-    const { id } = button.dataset;
-    const payment = store.getPayment(id);
-    if (!payment) return;
-
-    try {
-      store.removePayment(id);
-    } catch {
-      showError('Не удалось удалить запись');
+    if (payments.length > 0) {
+      listEl.innerHTML = daysWithPayments(payments).map(dayGroupMarkup).join('');
       return;
     }
-    haptic(12);
-    showToast({
-      title: 'Запись удалена',
-      subtitle: `${getMethod(payment.method).title} · ${formatMoney(payment.amount)}`,
-      tone: 'var(--danger)',
+
+    listEl.innerHTML =
+      store.getStatus() === store.Status.Loading
+        ? '<div class="card empty"><span class="spinner spinner--lg"></span>Читаю таблицу…</div>'
+        : `<div class="card empty">
+             <span class="empty__emoji">🧾</span>
+             Здесь появятся все оплаты из таблицы с точным временем.
+           </div>`;
+  }
+
+  delegate(container, '.row__delete', 'click', async (_event, button) => {
+    const { id } = button.dataset;
+    const payment = store.getPayment(id);
+    if (!payment || button.disabled) return;
+
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner"></span>';
+
+    try {
+      await store.removePayment(id);
+      haptic(12);
+      showToast({
+        title: 'Запись удалена',
+        subtitle: `${getMethod(payment.method).title} · ${formatMoney(payment.amount)}`,
+        tone: 'var(--danger)',
+      });
+    } catch (error) {
+      showError('Не удалось удалить', describeError(error));
+      render();
+    }
+  });
+
+  delegate(container, '[data-action="refresh"]', 'click', () => {
+    store.refresh().catch(() => {
+      // Полоса состояния под шапкой уже сообщила о проблеме.
     });
   });
 
-  delegate(container, '[data-action]', 'click', (_event, button) => {
-    const { action } = button.dataset;
-
-    if (action === 'csv') {
-      handleExport(() => exportCsv(store.getPayments()), 'Файл CSV готов');
-    } else if (action === 'backup') {
-      handleExport(() => exportJson(store.getPayments()), 'Резервная копия сохранена');
-    } else if (action === 'restore') {
-      fileInput.click();
-    } else if (action === 'clear') {
-      confirmClear();
-    }
-  });
-
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    fileInput.value = '';
-    if (!file) return;
-
-    try {
-      const restored = store.replaceAll(await importJson(file));
-      showToast({ title: 'Данные восстановлены', subtitle: plural(restored) });
-    } catch {
-      showError('Не удалось прочитать файл', 'Нужен JSON, созданный этим приложением');
-    }
-  });
-
   return { update: render, destroy() {} };
-}
-
-function handleExport(run, successTitle) {
-  try {
-    run();
-    showToast({ title: successTitle });
-  } catch {
-    showError('Не удалось выгрузить файл');
-  }
-}
-
-function confirmClear() {
-  const count = store.getCount();
-  if (count === 0) {
-    showError('Удалять нечего');
-    return;
-  }
-  const confirmed = window.confirm(
-    `Удалить все записи (${plural(count)})? Отменить это действие будет нельзя.`,
-  );
-  if (!confirmed) return;
-
-  try {
-    store.clearAll();
-    showToast({ title: 'Все записи удалены', tone: 'var(--danger)' });
-  } catch {
-    showError('Не удалось очистить данные');
-  }
 }
 
 function dayGroupMarkup({ key, payments, totals }) {

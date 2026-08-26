@@ -1,4 +1,5 @@
-import { formatTime, todayKey, paymentsOfDay, totalsOf } from '../analytics.js';
+import { describeError } from '../api.js';
+import { formatTime, paymentsOfDay, todayKey, totalsOf } from '../analytics.js';
 import { delegate, haptic } from '../components/dom.js';
 import { showError, showToast } from '../components/toast.js';
 import { METHODS, getMethod } from '../methods.js';
@@ -43,52 +44,62 @@ export function mount(container) {
   const hintEl = container.querySelector('#amount-hint');
   const methodsEl = container.querySelector('#methods');
 
+  /** Пока запись уходит в таблицу, здесь лежит код способа оплаты. */
+  let savingMethod = null;
   let longPressTimer = null;
   let longPressFired = false;
 
   function render() {
     const empty = draft === EMPTY_DRAFT;
     valueEl.textContent = formatDraft(draft);
-    valueEl.classList.toggle('amount__value--empty', empty);
-    hintEl.textContent = empty
-      ? 'Введите сумму оплаты'
-      : 'Теперь выберите способ оплаты — запись сохранится сразу';
-    methodsEl.innerHTML = methodsMarkup(empty);
+    valueEl.classList.toggle('amount__value--empty', empty && !savingMethod);
+
+    if (savingMethod) hintEl.textContent = 'Сохраняю в таблицу…';
+    else if (empty) hintEl.textContent = 'Введите сумму оплаты';
+    else hintEl.textContent = 'Теперь выберите способ оплаты — запись уйдёт в таблицу';
+
+    methodsEl.innerHTML = methodsMarkup(empty, savingMethod);
   }
 
   function setDraft(next) {
-    if (next === draft) return;
+    if (savingMethod || next === draft) return;
     draft = next;
     render();
   }
 
-  function save(methodId) {
+  async function save(methodId) {
+    if (savingMethod) return;
+
     const amount = draftToKopecks(draft);
     if (amount <= 0) {
       showError('Сначала введите сумму');
       return;
     }
 
-    let payment;
-    try {
-      payment = store.addPayment(amount, methodId);
-    } catch {
-      showError('Не удалось сохранить', 'Браузер запретил локальное хранилище');
-      return;
-    }
-
-    const method = getMethod(methodId);
-    draft = EMPTY_DRAFT;
+    savingMethod = methodId;
     render();
-    haptic([10, 40, 14]);
-    showToast({
-      title: 'Сохранено',
-      subtitle: `${method.title} · ${formatMoney(payment.amount)} · ${formatTime(payment.createdAt)}`,
-      tone: method.color,
-    });
+
+    try {
+      const payment = await store.addPayment(amount, methodId);
+      const method = getMethod(methodId);
+      draft = EMPTY_DRAFT;
+      haptic([10, 40, 14]);
+      showToast({
+        title: 'Сохранено',
+        subtitle: `${method.title} · ${formatMoney(payment.amount)} · ${formatTime(payment.createdAt)}`,
+        tone: method.color,
+      });
+    } catch (error) {
+      // Сумму не сбрасываем: пользователь должен иметь возможность повторить.
+      showError('Не удалось сохранить', describeError(error));
+    } finally {
+      savingMethod = null;
+      render();
+    }
   }
 
   delegate(container, '.key', 'click', (_event, button) => {
+    if (savingMethod) return;
     const key = button.dataset.key;
 
     if (key === 'back') {
@@ -123,7 +134,7 @@ export function mount(container) {
   delegate(container, '.method', 'click', (_event, button) => save(button.dataset.method));
 
   function onKeyDown(event) {
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.metaKey || event.ctrlKey || event.altKey || savingMethod) return;
 
     if (/^[0-9]$/.test(event.key)) setDraft(pushDigit(draft, event.key));
     else if (event.key === ',' || event.key === '.') setDraft(pushSeparator(draft));
@@ -158,20 +169,22 @@ function keyMarkup(key) {
   return `<button class="key" type="button" data-key="${key}">${key}</button>`;
 }
 
-function methodsMarkup(disabled) {
+function methodsMarkup(emptyDraft, savingMethod) {
   const todayTotals = totalsOf(paymentsOfDay(store.getPayments(), todayKey()));
+  const locked = emptyDraft || savingMethod !== null;
 
   return METHODS.map((method) => {
     const amount = todayTotals.byMethod[method.id] ?? 0;
+    const saving = savingMethod === method.id;
     return `
-      <button class="method" type="button" data-method="${method.id}"
-              style="--dot: ${method.color}" ${disabled ? 'disabled' : ''}>
+      <button class="method${saving ? ' method--saving' : ''}" type="button" data-method="${method.id}"
+              style="--dot: ${method.color}" ${locked ? 'disabled' : ''}>
         <span class="method__dot" aria-hidden="true">
-          <svg viewBox="0 0 24 24">${method.icon}</svg>
+          ${saving ? '<span class="spinner"></span>' : `<svg viewBox="0 0 24 24">${method.icon}</svg>`}
         </span>
         <span class="method__body">
           <span class="method__title">${method.title}</span>
-          <span class="method__meta">сегодня ${formatMoney(amount)}</span>
+          <span class="method__meta">${saving ? 'Отправляю в таблицу…' : `сегодня ${formatMoney(amount)}`}</span>
         </span>
         <span class="method__chevron" aria-hidden="true">›</span>
       </button>`;

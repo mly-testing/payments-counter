@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
   <title>Оплаты — учёт по способам</title>
-  <meta name="description" content="Локальный учёт оплат клиентов: QR, карта, наличные. Суммы по дням и графики.">
+  <meta name="description" content="Учёт оплат клиентов в Google Таблице: QR, карта, наличные. Суммы и графики по дням.">
 
   <meta name="theme-color" content="#0f1420" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#f5f6fa" media="(prefers-color-scheme: light)">
@@ -20,13 +20,22 @@
   <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="app">
     <header class="app-header">
       <div class="app-header__row">
         <h1 class="app-header__title">Оплаты</h1>
-        <span class="app-header__badge" id="header-total">—</span>
+        <div class="app-header__actions">
+          <span class="app-header__badge" id="header-total">—</span>
+          <button class="icon-btn" type="button" id="refresh" aria-label="Обновить из таблицы">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/>
+              <path d="M20.5 4.5V10h-5.5"/>
+            </svg>
+          </button>
+        </div>
       </div>
       <p class="app-header__subtitle" id="header-subtitle">Сегодня</p>
+      <div class="sync" id="sync" hidden></div>
     </header>
 
     <main class="view" id="view" aria-live="polite"></main>
