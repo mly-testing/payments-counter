@@ -1,7 +1,7 @@
 import { describeError } from '../api.js';
 import { formatDayLabel, formatTime, paymentsOfDay, todayKey, totalsOf } from '../analytics.js';
 import { showConfirm, closeConfirm } from '../components/confirm.js';
-import { delegate, haptic, revealFully } from '../components/dom.js';
+import { delegate, haptic, pinToVisualViewport } from '../components/dom.js';
 import { editorMarkup, rowMarkup } from '../components/payment-rows.js';
 import { plural, renderTotals } from '../components/totals.js';
 import { showError, showToast } from '../components/toast.js';
@@ -31,6 +31,16 @@ export function mount(container) {
   const totalsEl = container.querySelector('#day-totals');
   const listEl = container.querySelector('#day-list');
 
+  // Панель живёт на body: внутри колонки приложения Safari иногда считает
+  // position:fixed не от экрана, и кнопки снова оказываются под клавиатурой.
+  const overlayEl = document.createElement('div');
+  overlayEl.className = 'editor-overlay';
+  overlayEl.hidden = true;
+  overlayEl.setAttribute('role', 'dialog');
+  overlayEl.setAttribute('aria-modal', 'true');
+  overlayEl.setAttribute('aria-labelledby', 'editor-title');
+  document.body.append(overlayEl);
+
   /** Запись, открытая на правку, вместе с ещё не сохранёнными значениями. */
   let editing = null;
   let saving = false;
@@ -48,8 +58,6 @@ export function mount(container) {
     // Запись могли удалить в таблице, пока она была открыта на правку.
     if (editing && !store.getPayment(editing.id)) editing = null;
 
-    listEl.classList.toggle('scroll-room', Boolean(editing));
-
     const payments = todayPayments();
     if (payments.length === 0) {
       listEl.innerHTML =
@@ -59,33 +67,42 @@ export function mount(container) {
                <span class="empty__emoji">📭</span>
                Сегодня оплат ещё не было
              </div>`;
+    } else {
+      listEl.innerHTML = `<div class="card list">${payments
+        .map((payment) =>
+          rowMarkup(payment, { editable: true, active: editing?.id === payment.id }),
+        )
+        .join('')}</div>`;
+    }
+
+    renderEditor();
+  }
+
+  function renderEditor() {
+    document.body.classList.toggle('is-editing', Boolean(editing));
+
+    if (!editing) {
+      overlayEl.hidden = true;
+      overlayEl.innerHTML = '';
       return;
     }
 
-    listEl.innerHTML = `<div class="card list">${payments.map(rowOrEditor).join('')}</div>`;
+    overlayEl.hidden = false;
+    overlayEl.innerHTML = editorMarkup(editing, saving, store.getPayment(editing.id));
+    pinToVisualViewport(overlayEl);
     if (focusPending) focusAmount();
-  }
-
-  function rowOrEditor(payment) {
-    return editing?.id === payment.id
-      ? editorMarkup(editing, saving)
-      : rowMarkup(payment, { editable: true });
   }
 
   function focusAmount() {
     focusPending = false;
-    const input = listEl.querySelector('.edit__input');
+    const input = overlayEl.querySelector('.edit__input');
     if (!input) return;
 
-    // Браузер по фокусу подтягивает к краю только само поле, из-за чего кнопки
-    // редактора остаются под таб-баром. Поэтому прокручиваем сами.
+    // Safari по фокусу крутит страницу к полю и снова прячет кнопки.
+    // Редактор уже в видимой области — прокрутку глушим.
     input.focus({ preventScroll: true });
     input.setSelectionRange(input.value.length, input.value.length);
-    revealEditor();
-  }
-
-  function revealEditor() {
-    revealFully(listEl.querySelector('.row--editing'));
+    pinToVisualViewport(overlayEl);
   }
 
   function closeEditor() {
@@ -149,14 +166,14 @@ export function mount(container) {
     render();
   });
 
-  // Набранное запоминаем сразу: перерисовка не должна терять правку.
-  container.addEventListener('input', (event) => {
+  // Слушатели на панели: она не внутри container, делегирование списка её не видит.
+  overlayEl.addEventListener('input', (event) => {
     if (editing && event.target.classList.contains('edit__input')) {
       editing.draft = event.target.value;
     }
   });
 
-  container.addEventListener('keydown', (event) => {
+  overlayEl.addEventListener('keydown', (event) => {
     if (!editing || !event.target.classList.contains('edit__input')) return;
 
     if (event.key === 'Enter') commit();
@@ -166,8 +183,7 @@ export function mount(container) {
     event.preventDefault();
   });
 
-  // Способ переключаем без перерисовки, иначе на телефоне закрылась бы клавиатура.
-  delegate(container, '[data-pick]', 'click', (_event, button) => {
+  delegate(overlayEl, '[data-pick]', 'click', (_event, button) => {
     if (!editing || saving) return;
 
     editing.method = button.dataset.pick;
@@ -176,10 +192,14 @@ export function mount(container) {
     }
   });
 
-  delegate(container, '[data-action="edit-save"]', 'click', () => commit());
+  delegate(overlayEl, '[data-action="edit-save"]', 'click', () => commit());
 
-  delegate(container, '[data-action="edit-cancel"]', 'click', () => {
+  delegate(overlayEl, '[data-action="edit-cancel"]', 'click', () => {
     if (!saving) closeEditor();
+  });
+
+  overlayEl.addEventListener('click', (event) => {
+    if (event.target === overlayEl && !saving) closeEditor();
   });
 
   delegate(container, '.row__delete', 'click', async (_event, button) => {
@@ -214,20 +234,24 @@ export function mount(container) {
     render();
   });
 
-  // Клавиатура телефона всплывает уже после фокуса и может закрыть кнопки,
-  // а её появление видно только по изменению видимой области.
   const viewport = window.visualViewport;
-  const onViewportResize = () => {
-    if (editing) revealEditor();
+  const onViewportChange = () => {
+    if (editing) pinToVisualViewport(overlayEl);
   };
-  viewport?.addEventListener('resize', onViewportResize);
+  viewport?.addEventListener('resize', onViewportChange);
+  viewport?.addEventListener('scroll', onViewportChange);
+  window.addEventListener('resize', onViewportChange);
 
   return {
     // Пока открыт редактор, список не пересобираем: фоновое обновление раз в
     // минуту иначе сбрасывало бы набранное и закрывало клавиатуру.
     update: () => (editing ? renderSummary() : render()),
     destroy() {
-      viewport?.removeEventListener('resize', onViewportResize);
+      viewport?.removeEventListener('resize', onViewportChange);
+      viewport?.removeEventListener('scroll', onViewportChange);
+      window.removeEventListener('resize', onViewportChange);
+      document.body.classList.remove('is-editing');
+      overlayEl.remove();
       closeConfirm();
     },
   };

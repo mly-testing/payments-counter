@@ -18,39 +18,33 @@ export function delegate(root, selector, eventName, handler) {
   });
 }
 
-/** Зазор между элементом и краем видимой области при прокрутке. */
-const REVEAL_GAP = 12;
-
 /**
- * Прокручивает страницу так, чтобы элемент попал в видимую область целиком.
+ * Приклеивает элемент к видимой области, а не к вёрстке страницы.
  *
- * Штатный scrollIntoView считает по границам окна и не знает ни про залипающую
- * шапку, ни про таб-бар снизу, ни про всплывающую клавиатуру телефона, поэтому
- * оставляет нижний край элемента под ними.
+ * На iPhone `position: fixed; inset: 0` считается от layout viewport, который
+ * клавиатура не сжимает. Кнопки остаются за ней. visualViewport — это как раз
+ * дырка над клавиатурой, и её координаты нужно проставлять самим.
  */
-export function revealFully(element) {
+export function pinToVisualViewport(element) {
   if (!element) return;
 
-  // На телефоне клавиатура поднимает нижнюю границу видимой области, при этом
-  // таб-бар остаётся у края окна — то есть уже за клавиатурой.
   const viewport = window.visualViewport;
-  const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  element.style.position = 'fixed';
+  element.style.right = 'auto';
+  element.style.bottom = 'auto';
 
-  const tabbar = document.getElementById('tabbar');
-  const header = document.querySelector('.app-header');
-  const tabbarTop =
-    tabbar && tabbar.offsetHeight > 0 ? tabbar.getBoundingClientRect().top : visibleBottom;
+  if (!viewport) {
+    element.style.top = '0';
+    element.style.left = '0';
+    element.style.width = '100%';
+    element.style.height = '100%';
+    return;
+  }
 
-  const bottomLimit = Math.min(visibleBottom, tabbarTop) - REVEAL_GAP;
-  const topLimit = (header ? header.getBoundingClientRect().bottom : 0) + REVEAL_GAP;
-
-  const rect = element.getBoundingClientRect();
-  const hiddenBelow = rect.bottom - bottomLimit;
-  const hiddenAbove = topLimit - rect.top;
-
-  // Когда элемент не влезает целиком, показываем его низ: там кнопки действий.
-  if (hiddenBelow > 0) window.scrollBy({ top: hiddenBelow, behavior: 'smooth' });
-  else if (hiddenAbove > 0) window.scrollBy({ top: -hiddenAbove, behavior: 'smooth' });
+  element.style.top = `${viewport.offsetTop}px`;
+  element.style.left = `${viewport.offsetLeft}px`;
+  element.style.width = `${viewport.width}px`;
+  element.style.height = `${viewport.height}px`;
 }
 
 /** Короткая тактильная отдача там, где браузер это умеет (Android, десктоп Chrome). */
