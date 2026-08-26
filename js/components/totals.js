@@ -2,17 +2,30 @@ import { CASHLESS_LABEL, METHODS } from '../methods.js';
 import { formatMoney } from '../money.js';
 
 /**
- * Блок итогов: по одной плитке на каждый способ оплаты, отдельная плитка
- * для безналичных (QR + Карта) и общая сумма по всем способам.
+ * Блок итогов: плитки оплат, безнал, отдельная плитка трат и общая сумма
+ * только по оплатам — траты в неё не входят.
  */
 export function renderTotals(totals) {
-  const methodTiles = METHODS.map(
-    (method) => `
+  const methodTiles = METHODS.filter((method) => !method.expense)
+    .map(
+      (method) => `
       <div class="tile" style="--dot: ${method.color}">
         <div class="tile__label"><span class="tile__marker"></span>${method.short}</div>
         <div class="tile__value">${formatMoney(totals.byMethod[method.id] ?? 0)}</div>
       </div>`,
-  ).join('');
+    )
+    .join('');
+
+  const spendTiles = METHODS.filter((method) => method.expense)
+    .map(
+      (method) => `
+      <div class="tile tile--wide" style="--dot: ${method.color}">
+        <div class="tile__label"><span class="tile__marker"></span>${method.short}</div>
+        <div class="tile__value">${formatMoney(totals.byMethod[method.id] ?? 0)}</div>
+        <div class="tile__note">Не входят в общую сумму оплат</div>
+      </div>`,
+    )
+    .join('');
 
   const cashlessShare = totals.total > 0
     ? `${Math.round((totals.cashless / totals.total) * 100)}% от общей суммы`
@@ -26,6 +39,7 @@ export function renderTotals(totals) {
         <div class="tile__value">${formatMoney(totals.cashless)}</div>
         <div class="tile__note">${CASHLESS_LABEL} · ${cashlessShare}</div>
       </div>
+      ${spendTiles}
       <div class="tile tile--wide tile--accent">
         <div class="tile__label">Всего по всем способам</div>
         <div class="tile__value">${formatMoney(totals.total)}</div>

@@ -1,4 +1,4 @@
-import { CASHLESS_IDS, METHOD_IDS } from './methods.js';
+import { CASHLESS_IDS, EXPENSE_IDS, METHOD_IDS } from './methods.js';
 
 /**
  * Агрегации и работа с датами. День определяется по местному времени телефона,
@@ -62,21 +62,26 @@ function emptyBuckets() {
 
 /**
  * @typedef {{byMethod: Record<string, number>, cashless: number, cash: number,
- *            total: number, count: number}} Totals
+ *            spend: number, total: number, count: number}} Totals
  */
 
 /** @returns {Totals} */
 export function totalsOf(payments) {
   const byMethod = emptyBuckets();
   let total = 0;
+  let count = 0;
 
   for (const payment of payments) {
     byMethod[payment.method] = (byMethod[payment.method] ?? 0) + payment.amount;
-    total += payment.amount;
+    if (!EXPENSE_IDS.includes(payment.method)) {
+      total += payment.amount;
+      count += 1;
+    }
   }
 
   const cashless = CASHLESS_IDS.reduce((sum, id) => sum + byMethod[id], 0);
-  return { byMethod, cashless, cash: total - cashless, total, count: payments.length };
+  const spend = EXPENSE_IDS.reduce((sum, id) => sum + byMethod[id], 0);
+  return { byMethod, cashless, cash: total - cashless, spend, total, count };
 }
 
 /** Группировка по локальным дням: ключ дня → платежи, от новых к старым. */

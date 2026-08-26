@@ -32,10 +32,15 @@ const HEADERS = [
 const COL = { ID: 0, DATE: 1, TIME: 2, TITLE: 3, CODE: 4, KIND: 5, AMOUNT: 6, STAMP: 7 };
 
 const METHODS = {
-  qr: { title: 'Безнал — QR', cashless: true },
-  card: { title: 'Безнал — Картой', cashless: true },
-  cash: { title: 'Наличными', cashless: false },
+  qr: { title: 'Безнал — QR', cashless: true, kind: 'Безналичная' },
+  card: { title: 'Безнал — Картой', cashless: true, kind: 'Безналичная' },
+  cash: { title: 'Наличными', cashless: false, kind: 'Наличные' },
+  spend: { title: 'Траты', cashless: false, kind: 'Траты' },
 };
+
+function methodKind(code) {
+  return METHODS[code].kind || (METHODS[code].cashless ? 'Безналичная' : 'Наличные');
+}
 
 const LOCK_TIMEOUT_MS = 10000;
 
@@ -189,7 +194,7 @@ function fillDerived(row, code, amount, stamp, timezone) {
     changed = true;
   }
 
-  const kind = METHODS[code].cashless ? 'Безналичная' : 'Наличные';
+  const kind = methodKind(code);
   if (String(row[COL.KIND] || '').trim() !== kind) {
     row[COL.KIND] = kind;
     changed = true;
@@ -244,7 +249,7 @@ function appendPayment(request) {
       Utilities.formatDate(now, timezone, 'HH:mm'),
       METHODS[method].title,
       method,
-      METHODS[method].cashless ? 'Безналичная' : 'Наличные',
+      methodKind(method),
       amount / 100,
       now.toISOString(),
     ]);

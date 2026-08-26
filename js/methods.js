@@ -33,16 +33,38 @@ export const METHODS = [
            <circle cx="12" cy="12" r="2.7"/>
            <path d="M6 12h.01M18 12h.01"/>`,
   },
+  {
+    id: 'spend',
+    title: 'Траты',
+    short: 'Траты',
+    color: 'var(--spend)',
+    cashless: false,
+    expense: true,
+    icon: `<circle cx="12" cy="12" r="8"/>
+           <path d="M8 12h8"/>`,
+  },
 ];
 
 export const METHOD_IDS = METHODS.map((m) => m.id);
 
 export const CASHLESS_IDS = METHODS.filter((m) => m.cashless).map((m) => m.id);
 
+export const EXPENSE_IDS = METHODS.filter((m) => m.expense).map((m) => m.id);
+
 const BY_ID = new Map(METHODS.map((m) => [m.id, m]));
 
 export function getMethod(id) {
-  return BY_ID.get(id) ?? { id, title: id, short: id, color: 'var(--text-muted)', cashless: false, icon: '' };
+  return (
+    BY_ID.get(id) ?? {
+      id,
+      title: id,
+      short: id,
+      color: 'var(--text-muted)',
+      cashless: false,
+      expense: false,
+      icon: '',
+    }
+  );
 }
 
 export function isKnownMethod(id) {

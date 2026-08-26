@@ -22,7 +22,7 @@ PORT = 8765
 TOKEN = 'dev-token'
 STATE_FILE = Path(__file__).resolve().parent / 'mock_sheet_data.json'
 
-METHODS = {'qr', 'card', 'cash'}
+METHODS = {'qr', 'card', 'cash', 'spend'}
 
 
 def load_payments():
