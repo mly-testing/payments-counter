@@ -1,5 +1,6 @@
 import { describeError } from './api.js';
 import { paymentsOfDay, todayKey, totalsOf } from './analytics.js';
+import { initConfirm } from './components/confirm.js';
 import { initToasts, showToast } from './components/toast.js';
 import { isConfigured } from './config.js';
 import { formatMoney } from './money.js';
@@ -129,6 +130,7 @@ function subtitleForCount() {
 
 function bootstrap() {
   initToasts();
+  initConfirm();
 
   if (!isConfigured()) {
     appEl.classList.add('app--setup');

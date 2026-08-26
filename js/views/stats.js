@@ -1,6 +1,7 @@
 import { describeError } from '../api.js';
-import { formatDayLabel, paymentsOfDay, todayKey, totalsOf } from '../analytics.js';
-import { delegate, haptic } from '../components/dom.js';
+import { formatDayLabel, formatTime, paymentsOfDay, todayKey, totalsOf } from '../analytics.js';
+import { showConfirm, closeConfirm } from '../components/confirm.js';
+import { delegate, haptic, revealFully } from '../components/dom.js';
 import { editorMarkup, rowMarkup } from '../components/payment-rows.js';
 import { plural, renderTotals } from '../components/totals.js';
 import { showError, showToast } from '../components/toast.js';
@@ -47,6 +48,8 @@ export function mount(container) {
     // Запись могли удалить в таблице, пока она была открыта на правку.
     if (editing && !store.getPayment(editing.id)) editing = null;
 
+    listEl.classList.toggle('scroll-room', Boolean(editing));
+
     const payments = todayPayments();
     if (payments.length === 0) {
       listEl.innerHTML =
@@ -74,8 +77,15 @@ export function mount(container) {
     const input = listEl.querySelector('.edit__input');
     if (!input) return;
 
-    input.focus();
+    // Браузер по фокусу подтягивает к краю только само поле, из-за чего кнопки
+    // редактора остаются под таб-баром. Поэтому прокручиваем сами.
+    input.focus({ preventScroll: true });
     input.setSelectionRange(input.value.length, input.value.length);
+    revealEditor();
+  }
+
+  function revealEditor() {
+    revealFully(listEl.querySelector('.row--editing'));
   }
 
   function closeEditor() {
@@ -177,15 +187,25 @@ export function mount(container) {
     const payment = store.getPayment(id);
     if (!payment || button.disabled) return;
 
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner"></span>';
+    const method = getMethod(payment.method);
+    const confirmed = await showConfirm({
+      title: 'Удалить запись?',
+      subtitle: `${method.title} · ${formatMoney(payment.amount)} · ${formatTime(payment.createdAt)}`,
+    });
+    if (!confirmed || !store.getPayment(id)) return;
+
+    const current = listEl.querySelector(`.row__delete[data-id="${id}"]`);
+    if (current) {
+      current.disabled = true;
+      current.innerHTML = '<span class="spinner"></span>';
+    }
 
     try {
       await store.removePayment(id);
       haptic(12);
       showToast({
         title: 'Запись удалена',
-        subtitle: `${getMethod(payment.method).title} · ${formatMoney(payment.amount)}`,
+        subtitle: `${method.title} · ${formatMoney(payment.amount)}`,
         tone: 'var(--danger)',
       });
     } catch (error) {
@@ -194,10 +214,21 @@ export function mount(container) {
     render();
   });
 
+  // Клавиатура телефона всплывает уже после фокуса и может закрыть кнопки,
+  // а её появление видно только по изменению видимой области.
+  const viewport = window.visualViewport;
+  const onViewportResize = () => {
+    if (editing) revealEditor();
+  };
+  viewport?.addEventListener('resize', onViewportResize);
+
   return {
     // Пока открыт редактор, список не пересобираем: фоновое обновление раз в
     // минуту иначе сбрасывало бы набранное и закрывало клавиатуру.
     update: () => (editing ? renderSummary() : render()),
-    destroy() {},
+    destroy() {
+      viewport?.removeEventListener('resize', onViewportResize);
+      closeConfirm();
+    },
   };
 }
