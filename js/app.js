@@ -7,6 +7,7 @@ import { formatMoney } from './money.js';
 import * as store from './store.js';
 import * as entryView from './views/entry.js';
 import * as historyView from './views/history.js';
+import * as salaryView from './views/salary.js';
 import * as setupView from './views/setup.js';
 import * as statsView from './views/stats.js';
 
@@ -14,6 +15,7 @@ const VIEWS = {
   entry: entryView,
   stats: statsView,
   history: historyView,
+  salary: salaryView,
 };
 
 const DEFAULT_TAB = 'entry';

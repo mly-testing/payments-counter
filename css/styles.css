@@ -727,6 +727,193 @@ body.is-editing .tabbar {
 }
 
 /* ==========================================================================
+   Экран зарплаты
+   ========================================================================== */
+.salary-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 20px 20px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 100% 0,
+      color-mix(in srgb, var(--accent) 25%, transparent),
+      transparent 52%),
+    linear-gradient(145deg,
+      color-mix(in srgb, var(--accent) 12%, var(--surface)),
+      var(--surface));
+  box-shadow: var(--shadow);
+}
+
+.salary-hero__eyebrow {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.salary-hero__date {
+  margin-top: 6px;
+  font-size: 19px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.salary-hero__amount {
+  margin-top: 12px;
+  font-size: clamp(38px, 12vw, 50px);
+  font-weight: 750;
+  letter-spacing: -.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-hero__formula {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-hero__period {
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.salary-hero__baseline {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.salary-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.salary-status__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-size: 19px;
+  font-weight: 750;
+}
+
+.salary-status--worked .salary-status__icon {
+  background: color-mix(in srgb, var(--card) 17%, transparent);
+  color: var(--card);
+}
+
+.salary-status__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.salary-status__body strong { font-size: 14px; }
+
+.salary-status__body span {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.salary-status__date {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 13px;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.salary-payout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 16px;
+}
+
+.salary-payout__date {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.salary-payout__period {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.salary-payout__total {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-payout__total strong { font-size: 17px; }
+
+.salary-payout__total span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.salary-rules {
+  padding: 17px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.salary-rules__title {
+  margin-bottom: 7px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.salary-rules p + p { margin-top: 7px; }
+
+.salary-rules__periods {
+  display: grid;
+  gap: 5px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+@media (max-width: 350px) {
+  .salary-hero { padding-inline: 17px; }
+  .salary-status__date { display: none; }
+  .salary-payout { align-items: flex-start; }
+  .salary-payout__total strong { font-size: 15px; }
+}
+
+/* ==========================================================================
    Кнопки-действия
    ========================================================================== */
 .actions {
