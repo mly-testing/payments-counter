@@ -123,6 +123,14 @@ test('семь смен на 15 сентября дают 24 500 ₽ к выпл
   assert.equal(next.amount, 2_450_000);
 });
 
+test('стартовые семь смен не переносятся в следующий расчётный период', () => {
+  const overview = salaryOverview([], atMoscowNoon('2026-10-01'));
+
+  assert.equal(overview.payouts[0].payout, '2026-10-15');
+  assert.equal(overview.payouts[0].shifts, 0);
+  assert.equal(overview.payouts[0].baselineApplied, false);
+});
+
 test('после 15-го ближайшая выплата и выплата за текущую смену различаются', () => {
   const payments = [payment('2026-09-10'), payment('2026-09-20')];
   const overview = salaryOverview(payments, atMoscowNoon('2026-09-20'));

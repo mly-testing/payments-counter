@@ -757,7 +757,6 @@ body.is-editing .tabbar {
   margin-top: 6px;
   font-size: 19px;
   font-weight: 650;
-  text-transform: capitalize;
 }
 
 .salary-hero__amount {
@@ -840,7 +839,6 @@ body.is-editing .tabbar {
   flex: 0 0 auto;
   color: var(--accent);
   font-size: 13px;
-  text-transform: capitalize;
   white-space: nowrap;
 }
 
@@ -855,7 +853,6 @@ body.is-editing .tabbar {
 .salary-payout__date {
   font-size: 16px;
   font-weight: 700;
-  text-transform: capitalize;
 }
 
 .salary-payout__period {
