@@ -25,10 +25,10 @@ export function salaryDayKey(date) {
 }
 
 /**
- * Уникальные рабочие дни до указанной даты включительно.
+ * Уникальные рабочие дни из всех записей таблицы.
  * Несколько оплат в день дают одну смену, а запись «Траты» сменой не считается.
  */
-export function workedDayKeys(payments, throughDay = '9999-12-31') {
+export function workedDayKeys(payments) {
   const days = new Set();
 
   for (const payment of payments) {
@@ -37,8 +37,7 @@ export function workedDayKeys(payments, throughDay = '9999-12-31') {
     const stamp = new Date(payment.createdAt);
     if (Number.isNaN(stamp.getTime())) continue;
 
-    const key = salaryDayKey(stamp);
-    if (key <= throughDay) days.add(key);
+    days.add(salaryDayKey(stamp));
   }
 
   return [...days].sort();
@@ -93,13 +92,13 @@ export function upcomingPayoutPeriods(referenceDate = new Date(), count = 2) {
   return payouts;
 }
 
-/** Итог одного периода на текущий момент. */
+/** Итог одного периода по всем записям таблицы. */
 export function summarizeSalaryPeriod(
   payments,
   period,
-  { throughDay = '9999-12-31', shiftRate = SHIFT_RATE } = {},
+  { shiftRate = SHIFT_RATE } = {},
 ) {
-  const observedDays = workedDayKeys(payments, throughDay).filter(
+  const observedDays = workedDayKeys(payments).filter(
     (key) => key >= period.start && key <= period.end,
   );
   const shifts = observedDays.length;
@@ -115,13 +114,13 @@ export function summarizeSalaryPeriod(
 /** Всё, что нужно экрану: ближайшие выплаты и выплата, куда попадёт сегодняшняя смена. */
 export function salaryOverview(payments, referenceDate = new Date(), payoutCount = 2) {
   const today = salaryDayKey(referenceDate);
-  const summarize = (period) => summarizeSalaryPeriod(payments, period, { throughDay: today });
+  const summarize = (period) => summarizeSalaryPeriod(payments, period);
 
   return {
     today,
     payouts: upcomingPayoutPeriods(referenceDate, payoutCount).map(summarize),
     activePeriod: summarize(periodForWorkDay(today)),
-    todayWorked: workedDayKeys(payments, today).includes(today),
+    todayWorked: workedDayKeys(payments).includes(today),
   };
 }
 
