@@ -3,16 +3,6 @@ import { EXPENSE_IDS } from './methods.js';
 /** Стоимость одной отработанной смены — все деньги, как и в остальном приложении, в копейках. */
 export const SHIFT_RATE = 3_500 * 100;
 
-/**
- * Подтверждённый пользователем итог на момент подключения зарплатного счётчика.
- * Это значение заменяет расчёт по старым оплатам только в одном расчётном периоде,
- * поэтому исторические записи не задваивают семь уже учтённых смен.
- */
-export const SALARY_BASELINE = Object.freeze({
-  asOf: '2026-09-15',
-  shifts: 7,
-});
-
 /** Рабочий день определяется по московскому времени, даже если приложение открыто в поездке. */
 export const SALARY_TIME_ZONE = 'Europe/Moscow';
 
@@ -107,33 +97,18 @@ export function upcomingPayoutPeriods(referenceDate = new Date(), count = 2) {
 export function summarizeSalaryPeriod(
   payments,
   period,
-  { throughDay = '9999-12-31', baseline = SALARY_BASELINE, shiftRate = SHIFT_RATE } = {},
+  { throughDay = '9999-12-31', shiftRate = SHIFT_RATE } = {},
 ) {
   const observedDays = workedDayKeys(payments, throughDay).filter(
     (key) => key >= period.start && key <= period.end,
   );
-
-  const baselineApplies =
-    baseline &&
-    Number.isInteger(baseline.shifts) &&
-    baseline.shifts >= 0 &&
-    baseline.asOf >= period.start &&
-    baseline.asOf <= period.end &&
-    baseline.asOf <= throughDay;
-
-  const addedAfterBaseline = baselineApplies
-    ? observedDays.filter((key) => key > baseline.asOf)
-    : [];
-  const shifts = baselineApplies ? baseline.shifts + addedAfterBaseline.length : observedDays.length;
+  const shifts = observedDays.length;
 
   return {
     ...period,
     shifts,
     amount: shifts * shiftRate,
     observedDays,
-    baselineApplied: Boolean(baselineApplies),
-    baselineShifts: baselineApplies ? baseline.shifts : 0,
-    addedAfterBaseline,
   };
 }
 

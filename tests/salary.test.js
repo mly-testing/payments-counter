@@ -85,37 +85,36 @@ test('в день зарплаты первой считается следую�
   );
 });
 
-test('подтверждённый стартовый итог заменяет старые дни и не задваивает их', () => {
+test('итог периода равен числу уникальных дней с оплатами', () => {
   const period = periodForWorkDay('2026-09-15');
   const payments = Array.from({ length: 10 }, (_unused, index) =>
     payment(`2026-09-${String(index + 1).padStart(2, '0')}`, 'cash', String(index)),
   );
   const summary = summarizeSalaryPeriod(payments, period, { throughDay: '2026-09-15' });
 
-  assert.equal(summary.baselineApplied, true);
-  assert.equal(summary.shifts, 7);
-  assert.equal(summary.amount, 7 * SHIFT_RATE);
+  assert.equal(summary.shifts, 10);
+  assert.equal(summary.amount, 10 * SHIFT_RATE);
 });
 
-test('после даты стартового итога добавляются только новые уникальные рабочие дни', () => {
+test('в расчёт входят только оплаты нужного периода', () => {
   const period = periodForWorkDay('2026-09-15');
   const payments = [
-    payment('2026-09-02', 'cash', 'old'),
-    payment('2026-09-11', 'qr', 'new-1'),
-    payment('2026-09-11', 'card', 'new-duplicate'),
-    payment('2026-09-12', 'spend', 'expense'),
+    payment('2026-08-31', 'cash', 'before'),
+    payment('2026-09-01', 'cash', 'first'),
+    payment('2026-09-15', 'qr', 'last'),
+    payment('2026-09-16', 'card', 'after'),
   ];
-  const summary = summarizeSalaryPeriod(payments, period, {
-    throughDay: '2026-09-15',
-    baseline: { asOf: '2026-09-10', shifts: 4 },
-  });
+  const summary = summarizeSalaryPeriod(payments, period, { throughDay: '2026-09-15' });
 
-  assert.equal(summary.shifts, 5);
-  assert.deepEqual(summary.addedAfterBaseline, ['2026-09-11']);
+  assert.equal(summary.shifts, 2);
+  assert.deepEqual(summary.observedDays, ['2026-09-01', '2026-09-15']);
 });
 
-test('семь смен на 15 сентября дают 24 500 ₽ к выплате 30 сентября', () => {
-  const overview = salaryOverview([], atMoscowNoon('2026-09-15'));
+test('семь дней с оплатами дают 24 500 ₽ к выплате 30 сентября', () => {
+  const payments = Array.from({ length: 7 }, (_unused, index) =>
+    payment(`2026-09-${String(index + 1).padStart(2, '0')}`, 'cash', String(index)),
+  );
+  const overview = salaryOverview(payments, atMoscowNoon('2026-09-15'));
   const [next] = overview.payouts;
 
   assert.equal(next.payout, '2026-09-30');
@@ -123,12 +122,12 @@ test('семь смен на 15 сентября дают 24 500 ₽ к выпл
   assert.equal(next.amount, 2_450_000);
 });
 
-test('стартовые семь смен не переносятся в следующий расчётный период', () => {
+test('пустой расчётный период даёт нулевую зарплату', () => {
   const overview = salaryOverview([], atMoscowNoon('2026-10-01'));
 
   assert.equal(overview.payouts[0].payout, '2026-10-15');
   assert.equal(overview.payouts[0].shifts, 0);
-  assert.equal(overview.payouts[0].baselineApplied, false);
+  assert.equal(overview.payouts[0].amount, 0);
 });
 
 test('после 15-го ближайшая выплата и выплата за текущую смену различаются', () => {

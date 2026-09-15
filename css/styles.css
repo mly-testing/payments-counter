@@ -784,16 +784,6 @@ body.is-editing .tabbar {
   font-size: 13px;
 }
 
-.salary-hero__baseline {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
 .salary-status {
   display: flex;
   align-items: center;

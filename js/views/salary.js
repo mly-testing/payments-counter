@@ -38,7 +38,6 @@ export function mount(container) {
           ${formatShiftCount(next.shifts)} × ${formatMoney(SHIFT_RATE)}
         </div>
         <div class="salary-hero__period">За смены ${formatPeriod(next)}</div>
-        ${baselineNote(next)}
       </section>
 
       <section class="section">
@@ -97,15 +96,6 @@ function payoutCard(payout) {
         <strong>${formatMoney(payout.amount)}</strong>
         <span>${formatShiftCount(payout.shifts)}</span>
       </div>
-    </div>`;
-}
-
-function baselineNote(payout) {
-  if (!payout.baselineApplied) return '';
-
-  return `
-    <div class="salary-hero__baseline">
-      Подтверждённый итог на 15 сентября: ${formatShiftCount(payout.baselineShifts)}
     </div>`;
 }
 
